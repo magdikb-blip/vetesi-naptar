@@ -44,6 +44,7 @@ if st.button("Adatok lekérése", type="primary"):
     else:
         with st.spinner("Az MI elemzi a növény igényeit és keresi a fotót..."):
             try:
+                # Kiegészített prompt a latin névvel
                 prompt = f"""
                 Te egy tapasztalt kertészmérnök vagy. A felhasználó a következő növényt szeretné termeszteni: '{noveny}'.
                 Add meg a növény legfontosabb adatait magyar nyelven, kizárólag az alábbi JSON formátumban, mindenféle extra szöveg nélkül:
@@ -68,10 +69,13 @@ if st.button("Adatok lekérése", type="primary"):
                 tiszta_szoveg = response.text.replace("```json", "").replace("```", "").strip()
                 adatok = json.loads(tiszta_szoveg)
                 
+                # Fotó lekérése a latin név alapján
                 kep_url = noveny_kep_keresese(adatok['latin_nev'])
                 
+                # 5. Eredmények megjelenítése
                 st.success(f"Sikeres elemzés: **{adatok['nev']}** (*{adatok['latin_nev']}*) – {adatok['kategoria']}")
                 
+                # Ha talált képet, megjeleníti középre igazítva
                 if kep_url:
                     col_bal, col_kozep, col_jobb = st.columns([1, 2, 1])
                     with col_kozep:
@@ -90,4 +94,4 @@ if st.button("Adatok lekérése", type="primary"):
                 st.write(f"💡 **Kertész tipp:** {adatok['pro_tipp']}")
                 
             except Exception as e:
-                st.error(f"Részletes hibaüzenet: {e}")
+                st.error("Hiba történt az adatok feldolgozása közben. Kérlek, próbáld újra egy másik növénnyel!")

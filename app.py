@@ -8,23 +8,6 @@ st.write("Írd be a növény nevét, és máris mutatom a legfontosabb vetési t
 
 client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
-# Automatikusan kikeresi a fiókodhoz elérhető legjobb modellt
-@st.cache_resource
-def elerheto_modell_keresese():
-    try:
-        modellek = [m.name for m in client.models.list() if "generateContent" in (m.supported_actions or [])]
-        for kulcsszo in ["flash-lite", "flash", "gemini"]:
-            for m in modellek:
-                if kulcsszo in m and "vision" not in m and "image" not in m:
-                    return m
-        if modellek:
-            return modellek[0]
-    except Exception:
-        pass
-    return "gemini-3.8-flash"
-
-modell_nev = elerheto_modell_keresese()
-
 noveny = st.text_input("Milyen növényt szeretnél elvetni?", placeholder="Pl.: borsó, paradicsom, bazsalikom...")
 
 if st.button("Adatok lekérése", type="primary"):
@@ -45,7 +28,7 @@ if st.button("Adatok lekérése", type="primary"):
                 """
                 
                 valasz = client.models.generate_content(
-                    model=modell_nev,
+                    model="gemini-3.5-flash-lite",
                     contents=kerdes
                 )
                 
@@ -53,4 +36,4 @@ if st.button("Adatok lekérése", type="primary"):
                 st.markdown(valasz.text)
                 
             except Exception as e:
-                st.error(f"Hiba ({modell_nev}): {e}")
+                st.error(f"Hiba: {e}")

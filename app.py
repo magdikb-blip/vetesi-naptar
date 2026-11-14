@@ -2,6 +2,7 @@ import streamlit as st
 from google import genai
 import json
 import requests
+import time
 
 # 1. Weboldal alapbeállításai
 st.set_page_config(page_title="MI Vetési Naptár", page_icon="🌱", layout="centered")
@@ -43,31 +44,42 @@ if st.button("Adatok lekérése", type="primary"):
         st.warning("Kérlek, előbb írd be egy növény nevét!")
     else:
         with st.spinner("Az MI elemzi a növény igényeit és keresi a fotót..."):
-            try:
-                prompt = f"""
-                Te egy tapasztalt kertészmérnök vagy. A felhasználó a következő növényt szeretné termeszteni: '{noveny}'.
-                Add meg a növény legfontosabb adatait magyar nyelven, kizárólag az alábbi JSON formátumban, mindenféle extra szöveg nélkül:
-                {{
-                    "nev": "A növény pontos magyar neve",
-                    "latin_nev": "A növény tudományos latin neve (pl. Solanum lycopersicum)",
-                    "kategoria": "Zöldség / Gyümölcs / Fűszernövény / Virág",
-                    "vetesi_ido": "Mikor kell elvetni (palántázás és szabadföld külön jelölve)",
-                    "csirazasi_ido": "Hány nap alatt csírázik ki és hány fokon",
-                    "fenyigeny": "Napos / Félárnyékos / Árnyékos (rövid magyarázattal)",
-                    "ontozes": "Vízigény és öntözési javaslat",
-                    "tarsultetes": "Mit érdemes mellé ültetni, és mit tilos",
-                    "pro_tipp": "Egy hasznos kertészeti jótanács ehhez a növényhez"
-                }}
-                """
-                
-                response = client.models.generate_content(
-                    model="gemini-3.8-flash",
-                    contents=prompt,
-                )
-                
-                tiszta_szoveg = response.text.replace("```json", "").replace("```", "").strip()
-                adatok = json.loads(tiszta_szoveg)
-                
+            prompt = f"""
+            Te egy tapasztalt kertészmérnök vagy. A felhasználó a következő növényt szeretné termeszteni: '{noveny}'.
+            Add meg a növény legfontosabb adatait magyar nyelven, kizárólag az alábbi JSON formátumban, mindenféle extra szöveg nélkül:
+            {{
+                "nev": "A növény pontos magyar neve",
+                "latin_nev": "A növény tudományos latin neve (pl. Solanum lycopersicum)",
+                "kategoria": "Zöldség / Gyümölcs / Fűszernövény / Virág",
+                "vetesi_ido": "Mikor kell elvetni (palántázás és szabadföld külön jelölve)",
+                "csirazasi_ido": "Hány nap alatt csírázik ki és hány fokon",
+                "fenyigeny": "Napos / Félárnyékos / Árnyékos (rövid magyarázattal)",
+                "ontozes": "Vízigény és öntözési javaslat",
+                "tarsultetes": "Mit érdemes mellé ültetni, és mit tilos",
+                "pro_tipp": "Egy hasznos kertészeti jótanács ehhez a növényhez"
+            }}
+            """
+            
+            siker = False
+            utolso_hiba = ""
+            
+            # Legfeljebb 3-szor próbálkozik, ha túlterhelt a szerver
+            for probalkozas in range(3):
+                try:
+                    response = client.models.generate_content(
+                        model="gemini-3.8-flash",
+                        contents=prompt,
+                    )
+                    
+                    tiszta_szoveg = response.text.replace("```json", "").replace("```", "").strip()
+                    adatok = json.loads(tiszta_szoveg)
+                    siker = True
+                    break
+                except Exception as e:
+                    utolso_hiba = str(e)
+                    time.sleep(2)
+            
+            if siker:
                 kep_url = noveny_kep_keresese(adatok['latin_nev'])
                 
                 st.success(f"Sikeres elemzés: **{adatok['nev']}** (*{adatok['latin_nev']}*) – {adatok['kategoria']}")
@@ -88,6 +100,5 @@ if st.button("Adatok lekérése", type="primary"):
                 st.markdown("---")
                 st.write(f"🤝 **Társültetés:** {adatok['tarsultetes']}")
                 st.write(f"💡 **Kertész tipp:** {adatok['pro_tipp']}")
-                
-            except Exception as e:
-                st.error(f"Részletes hibaüzenet: {e}")
+            else:
+                st.error(f"A Google szervere jelenleg túlterhelt, próbáld újra pár másodperc múlva! ({utolso_hiba})")
